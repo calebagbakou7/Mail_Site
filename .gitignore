@@ -1,0 +1,11 @@
+.venv/
+__pycache__/
+.env
+.env.*
+!.env.example
+instance/
+static/uploads/
+*.session
+*.session-journal
+flask.log
+import_bot.py

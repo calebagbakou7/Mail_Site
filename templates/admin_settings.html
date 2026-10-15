@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Configuration · Administration{% endblock %}
+{% block content %}
+<section class="welcome-row">
+  <div><p class="eyebrow">Paramètres financiers</p><h1>Configuration</h1><p class="muted">Les nouveaux tickets utiliseront la récompense définie ci-dessous.</p></div>
+  <a class="button button-secondary" href="{{ url_for('admin_dashboard') }}">← Tableau de bord</a>
+</section>
+<section class="admin-form-card settings-card">
+  <form method="post" class="form-stack">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label for="reward_fcfa">Récompense par ticket (FCFA)</label>
+    <input id="reward_fcfa" name="reward_fcfa" type="number" min="1" max="100000" step="1" value="{{ settings['reward_fcfa'] }}" required>
+    <p class="field-hint">Le montant est figé au moment où un ticket est attribué.</p>
+    <label for="minimum_withdrawal_fcfa">Seuil minimum de retrait (FCFA)</label>
+    <input id="minimum_withdrawal_fcfa" name="minimum_withdrawal_fcfa" type="number" min="100" max="100000000" step="1" value="{{ settings['minimum_withdrawal_fcfa'] }}" required>
+    <button class="button button-primary" type="submit">Enregistrer les paramètres</button>
+  </form>
+</section>
+{% endblock %}

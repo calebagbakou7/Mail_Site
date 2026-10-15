@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}Historique des retraits · Administration{% endblock %}
+{% block content %}
+<section class="welcome-row">
+  <div>
+    <p class="eyebrow">Administration</p>
+    <h1>Historique des retraits Mobile Money</h1>
+    <p class="muted">Les 100 demandes les plus récentes, en attente en premier.</p>
+  </div>
+</section>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    <div class="flash-list">
+      {% for category, message in messages %}
+        <p class="flash flash-{{ category }}">{{ message }}</p>
+      {% endfor %}
+    </div>
+  {% endif %}
+{% endwith %}
+
+<section class="section-block">
+  {% if withdrawals %}
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>ID Retrait</th>
+            <th>Numéro de téléphone</th>
+            <th>Réseau</th>
+            <th>Montant (FCFA)</th>
+            <th>Date de demande</th>
+            <th>Statut</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for w in withdrawals %}
+            <tr>
+              <td>#{{ w['id'] }}</td>
+              <td>{{ w['phone'] }}</td>
+              <td><span class="badge badge-network">{{ w['network'] }}</span></td>
+              <td>{{ format_fcfa(w['amount_fcfa']) }}</td>
+              <td>{{ w['requested_at'] }}</td>
+              <td><span class="badge badge-{{ w['status'] }}">{{ w['status'] }}</span></td>
+              <td>
+                {% if w['status'] == 'pending' %}
+                  <div class="action-pair">
+                    <form method="post" action="{{ url_for('process_withdrawal', withdrawal_id=w['id'], decision='pay') }}">
+                      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                      <button class="button button-approve" type="submit">✓ Marquer payé</button>
+                    </form>
+                    <form method="post" action="{{ url_for('process_withdrawal', withdrawal_id=w['id'], decision='reject') }}">
+                      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                      <button class="button button-reject" type="submit">✕ Rejeter</button>
+                    </form>
+                  </div>
+                {% else %}
+                  <span class="muted">Traité</span>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="empty-state"><h3>Aucune demande de retrait</h3><p>Les demandes des opérateurs apparaîtront ici.</p></div>
+  {% endif %}
+
+  <p class="muted"><a href="{{ url_for('admin_dashboard') }}">← Retour au panneau de supervision</a></p>
+</section>
+{% endblock %}

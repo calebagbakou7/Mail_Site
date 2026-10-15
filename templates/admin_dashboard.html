@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+{% block title %}Supervision · Administration{% endblock %}
+{% block content %}
+<section class="welcome-row">
+  <div>
+    <p class="eyebrow">Administration</p>
+    <h1>Panneau de supervision</h1>
+    <p class="muted">Validez les sessions soumises et traitez les demandes de retrait Mobile Money.</p>
+  </div>
+</section>
+
+<section class="stats-row">
+  <div class="stat-card">
+    <p class="stat-label">Opérateurs</p>
+    <p class="stat-value">{{ stats['users'] }}</p>
+  </div>
+  <div class="stat-card">
+    <p class="stat-label">Tickets approuvés</p>
+    <p class="stat-value">{{ stats['approved'] }}</p>
+  </div>
+  <div class="stat-card">
+    <p class="stat-label">Total crédité</p>
+    <p class="stat-value">{{ format_fcfa(stats['paid_out']) }} FCFA</p>
+  </div>
+  <div class="stat-card">
+    <p class="stat-label">Retraits en attente</p>
+    <p class="stat-value">{{ stats['pending_withdrawals'] }}</p>
+  </div>
+  <div class="stat-card">
+    <p class="stat-label">Sessions à revoir</p>
+    <p class="stat-value">{{ stats['pending_reviews'] }}</p>
+  </div>
+</section>
+
+<section class="section-block">
+  <div class="section-heading">
+    <div>
+      <p class="eyebrow">Étape 4</p>
+      <h2>Revue des validations de sessions</h2>
+      <p class="muted">{{ pending_reviews|length }} session(s) en attente de décision</p>
+    </div>
+  </div>
+
+  {% if pending_reviews %}
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>ID Session</th>
+            <th>Opérateur (téléphone)</th>
+            <th>Justificatif graphique</th>
+            <th>Clé de clôture soumise</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in pending_reviews %}
+            <tr>
+              <td>#{{ r['id'] }}</td>
+              <td>{{ r['phone'] }}</td>
+              <td>
+                {% if r['proof_path'] %}
+                  <a href="{{ url_for('static', filename=r['proof_path']) }}" target="_blank" rel="noopener noreferrer" class="proof-thumb-link">
+                    <img src="{{ url_for('static', filename=r['proof_path']) }}" alt="Justificatif soumis pour la session #{{ r['id'] }}" class="proof-thumb" loading="lazy">
+                  </a>
+                  <p class="resource-link"><a href="{{ url_for('static', filename=r['proof_path']) }}" target="_blank" rel="noopener noreferrer">Ouvrir en grand ↗</a></p>
+                {% else %}
+                  <p class="muted">Aucun justificatif</p>
+                {% endif %}
+              </td>
+              <td><code class="closing-key">{{ r['closing_key'] }}</code></td>
+              <td>
+                <div class="action-pair">
+                  <form method="post" action="{{ url_for('review_submission', assignment_id=r['id'], decision='approve') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button class="button button-approve" type="submit">✓ Approuver</button>
+                  </form>
+                  <form method="post" action="{{ url_for('review_submission', assignment_id=r['id'], decision='reject') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button class="button button-reject" type="submit">✕ Rejeter</button>
+                  </form>
+                </div>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="empty-state"><h3>Aucune session en attente</h3><p>Toutes les soumissions ont été traitées.</p></div>
+  {% endif %}
+</section>
+
+<section class="section-block">
+  <div class="section-heading">
+    <div>
+      <p class="eyebrow">Mobile Money</p>
+      <h2>Demandes de retrait en attente</h2>
+    </div>
+  </div>
+
+  {% if withdrawals %}
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>ID Retrait</th>
+            <th>Numéro de téléphone</th>
+            <th>Réseau</th>
+            <th>Montant (FCFA)</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for w in withdrawals %}
+            {% if w['status'] == 'pending' %}
+              <tr>
+                <td>#{{ w['id'] }}</td>
+                <td>{{ w['phone'] }}</td>
+                <td><span class="badge badge-network">{{ w['network'] }}</span></td>
+                <td>{{ format_fcfa(w['amount_fcfa']) }}</td>
+                <td>
+                  <div class="action-pair">
+                    <form method="post" action="{{ url_for('process_withdrawal', withdrawal_id=w['id'], decision='pay') }}">
+                      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                      <button class="button button-approve" type="submit">✓ Marquer payé</button>
+                    </form>
+                    <form method="post" action="{{ url_for('process_withdrawal', withdrawal_id=w['id'], decision='reject') }}">
+                      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                      <button class="button button-reject" type="submit">✕ Rejeter et recréditer</button>
+                    </form>
+                  </div>
+                </td>
+              </tr>
+            {% endif %}
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="empty-state"><h3>Aucune demande en attente</h3><p>Les nouvelles demandes de retrait apparaîtront ici.</p></div>
+  {% endif %}
+
+  <p class="muted"><a href="{{ url_for('admin_withdrawals') }}">Voir l'historique complet des retraits ↗</a></p>
+</section>
+{% endblock %}

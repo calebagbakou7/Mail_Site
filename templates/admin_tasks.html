@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+{% block title %}Gestion des tickets · Administration{% endblock %}
+{% block content %}
+<section class="welcome-row">
+  <div>
+    <p class="eyebrow">Administration</p>
+    <h1>Gestion des tickets</h1>
+    <p class="muted">Créez les paramètres de session et pilotez la disponibilité du flux.</p>
+  </div>
+</section>
+
+<section class="section-block">
+  <div class="section-heading">
+    <div>
+      <p class="eyebrow">Nouveau ticket</p>
+      <h2>Créer un ticket</h2>
+    </div>
+  </div>
+
+  <form method="post" action="{{ url_for('admin_tasks') }}" class="admin-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="validation_mode" value="manual">
+
+    <div class="form-field">
+      <label for="prompt">Description interne du ticket</label>
+      <p class="field-hint">Consigne de référence pour l'équipe de revue (1 à 2000 caractères). N'est pas affichée telle quelle à l'utilisateur.</p>
+      <textarea id="prompt" name="prompt" rows="3" maxlength="2000" required></textarea>
+    </div>
+
+    <div class="form-grid">
+      <div class="form-field">
+        <label for="valeur_a">Valeur A</label>
+        <input type="text" id="valeur_a" name="valeur_a" maxlength="500" required>
+      </div>
+      <div class="form-field">
+        <label for="valeur_b">Valeur B</label>
+        <input type="text" id="valeur_b" name="valeur_b" maxlength="500" required>
+      </div>
+      <div class="form-field">
+        <label for="valeur_c">Valeur C</label>
+        <input type="text" id="valeur_c" name="valeur_c" maxlength="500" required>
+      </div>
+      <div class="form-field">
+        <label for="valeur_d">Valeur D</label>
+        <input type="text" id="valeur_d" name="valeur_d" maxlength="500" required>
+      </div>
+    </div>
+
+    <div class="form-grid">
+      <div class="form-field">
+        <label for="resource_url_1">Lien ressource — étape 3</label>
+        <p class="field-hint">Guide affiché à l'utilisateur pendant le test de l'interface.</p>
+        <input type="url" id="resource_url_1" name="resource_url_1" maxlength="2000" placeholder="https://…">
+      </div>
+      <div class="form-field">
+        <label for="resource_url_2">Lien ressource — étape 4</label>
+        <p class="field-hint">Guide affiché à l'utilisateur pendant l'attente de revue.</p>
+        <input type="url" id="resource_url_2" name="resource_url_2" maxlength="2000" placeholder="https://…">
+      </div>
+    </div>
+
+    <button class="button button-primary" type="submit">＋ Ajouter le ticket au flux</button>
+  </form>
+</section>
+
+<section class="section-block">
+  <div class="section-heading">
+    <div>
+      <p class="eyebrow">Flux actif</p>
+      <h2>Tickets enregistrés</h2>
+      <p class="muted">{{ tasks|length }} ticket(s) affiché(s) sur les 100 les plus récents</p>
+    </div>
+  </div>
+
+  {% if tasks %}
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>ID Task</th>
+            <th>Valeurs A–D</th>
+            <th>Liens de ressources</th>
+            <th>Tickets pris</th>
+            <th>Statut</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for task in tasks %}
+            <tr>
+              <td>#{{ task['id'] }}</td>
+              <td>
+                <dl class="value-list value-list-compact">
+                  <div class="value-row"><dt>A</dt><dd>{{ task['Valeur_A'] }}</dd></div>
+                  <div class="value-row"><dt>B</dt><dd>{{ task['Valeur_B'] }}</dd></div>
+                  <div class="value-row"><dt>C</dt><dd>{{ task['Valeur_C'] }}</dd></div>
+                  <div class="value-row"><dt>D</dt><dd>{{ task['Valeur_D'] }}</dd></div>
+                </dl>
+              </td>
+              <td>
+                {% if task['resource_url_1'] %}
+                  <p class="resource-link"><a href="{{ task['resource_url_1'] }}" target="_blank" rel="noopener noreferrer">Étape 3 ↗</a></p>
+                {% else %}
+                  <p class="muted">Étape 3 : —</p>
+                {% endif %}
+                {% if task['resource_url_2'] %}
+                  <p class="resource-link"><a href="{{ task['resource_url_2'] }}" target="_blank" rel="noopener noreferrer">Étape 4 ↗</a></p>
+                {% else %}
+                  <p class="muted">Étape 4 : —</p>
+                {% endif %}
+              </td>
+              <td>{{ task['assignment_count'] }}</td>
+              <td>
+                {% if task['active'] %}
+                  <span class="badge badge-active">Actif</span>
+                {% else %}
+                  <span class="badge badge-inactive">Inactif</span>
+                {% endif %}
+              </td>
+              <td>
+                <form method="post" action="{{ url_for('toggle_task', task_id=task['id']) }}">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  {% if task['active'] %}
+                    <button class="button button-light" type="submit">Désactiver</button>
+                  {% else %}
+                    <button class="button button-primary" type="submit">Activer</button>
+                  {% endif %}
+                </form>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="empty-state"><h3>Aucun ticket enregistré</h3><p>Créez un premier ticket à l'aide du formulaire ci-dessus.</p></div>
+  {% endif %}
+</section>
+{% endblock %}

@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Créer un compte · Tâches Bénin{% endblock %}
+{% block content %}
+<section class="auth-wrap">
+  <div class="auth-card">
+    <p class="eyebrow">Tâches Bénin</p>
+    <h1>Créer votre compte opérateur</h1>
+    <p class="muted">Inscrivez-vous avec votre numéro Mobile Money pour accéder aux tâches disponibles.</p>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="flash-list">
+          {% for category, message in messages %}
+            <p class="flash flash-{{ category }}">{{ message }}</p>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    <form method="post" action="{{ url_for('register') }}" class="form-stack">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+      <div class="form-field">
+        <label for="register-phone">Numéro de téléphone</label>
+        <input type="tel" id="register-phone" name="phone" inputmode="tel" placeholder="+229 …" autocomplete="tel" required autofocus>
+        <p class="field-hint">Format béninois, avec ou sans l'indicatif +229.</p>
+      </div>
+
+      <div class="form-field">
+        <label for="register-network">Réseau Mobile Money</label>
+        <select id="register-network" name="network" required>
+          <option value="" disabled selected>Choisissez votre réseau</option>
+          <option value="MTN">MTN</option>
+          <option value="MOOV">MOOV</option>
+        </select>
+      </div>
+
+      <div class="form-field">
+        <label for="register-password">Mot de passe</label>
+        <input type="password" id="register-password" name="password" autocomplete="new-password" minlength="10" required>
+        <p class="field-hint">10 caractères minimum.</p>
+      </div>
+
+      <button class="button button-primary button-block" type="submit">Créer mon compte</button>
+    </form>
+
+    <p class="muted auth-footnote">Déjà inscrit ? <a href="{{ url_for('login') }}">Connectez-vous</a></p>
+  </div>
+</section>
+{% endblock %}

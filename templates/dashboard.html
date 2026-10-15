@@ -1,0 +1,212 @@
+{% extends "base.html" %}
+{% block title %}Mon tableau de bord · Tâches Bénin{% endblock %}
+{% block content %}
+<section class="welcome-row">
+  <div>
+    <p class="eyebrow">Espace opérateur</p>
+    <h1>Bonjour, {{ user['phone'] }}</h1>
+    <p class="muted">Réseau Mobile Money : <strong>{{ user['network'] }}</strong></p>
+  </div>
+</section>
+
+<section class="wallet-card">
+  <div>
+    <p class="wallet-label">Solde disponible</p>
+    <p class="wallet-amount">{{ format_fcfa(user['balance_fcfa']) }} <span>FCFA</span></p>
+    {% if user['balance_fcfa'] < settings['minimum_withdrawal_fcfa'] %}
+      <p class="wallet-note">Retrait dès {{ format_fcfa(settings['minimum_withdrawal_fcfa']) }} FCFA · Manque {{ format_fcfa(settings['minimum_withdrawal_fcfa'] - user['balance_fcfa']) }} FCFA</p>
+    {% else %}
+      <p class="wallet-note">Votre solde a atteint le seuil de retrait.</p>
+    {% endif %}
+  </div>
+  {% if user['balance_fcfa'] >= settings['minimum_withdrawal_fcfa'] %}
+    <form method="post" action="{{ url_for('request_withdrawal') }}" class="withdraw-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <label class="sr-only" for="withdraw-amount">Montant à retirer en FCFA</label>
+      <input id="withdraw-amount" name="amount" type="number" min="{{ settings['minimum_withdrawal_fcfa'] }}" max="{{ user['balance_fcfa'] }}" step="1" value="{{ user['balance_fcfa'] }}" required>
+      <button class="button button-light" type="submit">Retirer mes gains</button>
+    </form>
+  {% else %}
+    <button class="button button-disabled" type="button" disabled>Retrait indisponible</button>
+  {% endif %}
+</section>
+
+<section class="section-block">
+  <div class="section-heading">
+    <div>
+      <p class="eyebrow">Flux de production</p>
+      <h2>Vos tâches de test</h2>
+      <p class="muted">{{ active_count }} ticket(s) en cours sur {{ max_active }} maximum · {{ available_count }} prêt(s)</p>
+    </div>
+    <form method="post" action="{{ url_for('take_tickets') }}" class="take-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <label class="sr-only" for="ticket-count">Nombre de tâches à piocher</label>
+      <select id="ticket-count" name="count" aria-label="Nombre de tâches">
+        {% for n in range(1, max_active + 1) %}<option value="{{ n }}">{{ n }} tâche{% if n > 1 %}s{% endif %}</option>{% endfor %}
+      </select>
+      <button class="button button-primary" type="submit" {% if active_count >= max_active or available_count == 0 %}disabled{% endif %}>＋ Piocher des tâches</button>
+    </form>
+  </div>
+
+  {% if assignments %}
+    <div class="ticket-grid">
+      {% for item in assignments %}
+        <article class="ticket-card">
+
+          <!-- En-tête de la tâche -->
+          <div class="ticket-top">
+            <span class="ticket-id">Tâche #{{ item['id'] }}</span>
+            <span class="badge badge-{{ item['status'] }}">Étape {{ item['current_step'] }} / 4</span>
+          </div>
+
+          <!-- 📍 ÉTAPE 1 : Paramètres initiaux du test -->
+          {% if item['current_step'] == 1 %}
+            <div class="ticket-panel ticket-panel-danger">
+              <p class="panel-title panel-title-danger">⚠️ Conformité obligatoire</p>
+              <p class="panel-text">Les quatre valeurs ci-dessous doivent être reportées exactement, sans aucune modification, lors du test de l'interface externe.</p>
+            </div>
+
+            <dl class="value-list">
+              <div class="value-row">
+                <dt>Valeur A</dt>
+                <dd>
+                  <code id="valeur-a-{{ item['id'] }}">{{ item['valeur_a'] }}</code>
+                  <button type="button" class="copy-button" data-copy-target="valeur-a-{{ item['id'] }}" aria-label="Copier la valeur A">Copier</button>
+                </dd>
+              </div>
+              <div class="value-row">
+                <dt>Valeur B</dt>
+                <dd>
+                  <code id="valeur-b-{{ item['id'] }}">{{ item['valeur_b'] }}</code>
+                  <button type="button" class="copy-button" data-copy-target="valeur-b-{{ item['id'] }}" aria-label="Copier la valeur B">Copier</button>
+                </dd>
+              </div>
+              <div class="value-row">
+                <dt>Valeur C</dt>
+                <dd>
+                  <code id="valeur-c-{{ item['id'] }}">{{ item['valeur_c'] }}</code>
+                  <button type="button" class="copy-button" data-copy-target="valeur-c-{{ item['id'] }}" aria-label="Copier la valeur C">Copier</button>
+                </dd>
+              </div>
+              <div class="value-row">
+                <dt>Valeur D</dt>
+                <dd>
+                  <code id="valeur-d-{{ item['id'] }}">{{ item['valeur_d'] }}</code>
+                  <button type="button" class="copy-button" data-copy-target="valeur-d-{{ item['id'] }}" aria-label="Copier la valeur D">Copier</button>
+                </dd>
+              </div>
+            </dl>
+
+            <p class="ticket-reward">Gain estimé : <strong>{{ format_fcfa(item['reward_fcfa']) }} FCFA</strong></p>
+
+            <form method="post" action="{{ url_for('next_step', assignment_id=item['id']) }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input type="hidden" name="confirm" value="1">
+              <button class="button button-primary button-block" type="submit">✓ J'ai pris connaissance des consignes</button>
+            </form>
+
+          <!-- 📍 ÉTAPE 2 : Justificatif de test -->
+          {% elif item['current_step'] == 2 %}
+            <div class="ticket-panel ticket-panel-info">
+              <p class="panel-title panel-title-info">Étape 2 : Justificatif de test</p>
+              <p class="panel-text">Téléversez une capture d'écran prouvant que vous avez lancé le test sur l'interface indiquée à l'étape 1.</p>
+            </div>
+
+            <form method="post" action="{{ url_for('upload_proof', assignment_id=item['id']) }}" enctype="multipart/form-data" class="form-stack">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <label for="proof-{{ item['id'] }}">Capture d'écran (PNG, JPG — 5 Mo max)</label>
+              <input type="file" id="proof-{{ item['id'] }}" name="proof" accept="image/png, image/jpeg" required>
+              <button class="button button-primary button-block" type="submit">Envoyer le justificatif</button>
+            </form>
+
+          <!-- 📍 ÉTAPE 3 : Lien de test et clé de clôture -->
+          {% elif item['current_step'] == 3 %}
+            <div class="ticket-panel ticket-panel-warning">
+              <p class="panel-title panel-title-warning">Étape 3 : Test de l'interface</p>
+              <p class="panel-text">Ouvrez le lien ci-dessous, parcourez l'interface demandée, puis saisissez la clé de clôture fournie à la fin du parcours.</p>
+            </div>
+
+            {% if item['resource_url_1'] %}
+              <p class="resource-link">
+                <a href="{{ item['resource_url_1'] }}" target="_blank" rel="noopener noreferrer" class="button button-light button-block">↗ Ouvrir l'interface à tester</a>
+              </p>
+            {% endif %}
+
+            <form method="post" action="{{ url_for('submit_key', assignment_id=item['id']) }}" class="form-stack">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <label for="closing-key-{{ item['id'] }}">Clé de clôture</label>
+              <input type="text" id="closing-key-{{ item['id'] }}" name="closing_key" maxlength="64" pattern="[A-Za-z0-9]{4,64}" required placeholder="Clé alphanumérique fournie en fin de parcours" class="input-mono">
+              <button class="button button-primary button-block" type="submit">Valider et clore le ticket</button>
+            </form>
+
+          <!-- 📍 ÉTAPE 4 : Revue administrative -->
+          {% elif item['current_step'] == 4 %}
+            {% if item['status'] == 'pending_review' %}
+              <div class="ticket-panel ticket-panel-success">
+                <p class="panel-title panel-title-success">Étape 4 : Analyse en cours</p>
+                <p class="panel-text">Votre justificatif et votre clé de clôture sont en cours de vérification par l'équipe. Délai de traitement estimé : 15 minutes.</p>
+              </div>
+
+              {% if item['resource_url_2'] %}
+                <p class="resource-link">
+                  <a href="{{ item['resource_url_2'] }}" target="_blank" rel="noopener noreferrer" class="button button-light button-block">↗ Marche à suivre pendant l'attente</a>
+                </p>
+              {% endif %}
+            {% elif item['status'] == 'approved' %}
+              <div class="ticket-panel ticket-panel-success">
+                <p class="panel-title panel-title-success">Ticket validé</p>
+                <p class="panel-text">Votre test a été approuvé.</p>
+              </div>
+              <p class="ticket-reward ticket-reward-success">Crédité : +{{ format_fcfa(item['reward_fcfa']) }} FCFA</p>
+            {% elif item['status'] == 'rejected' %}
+              <div class="ticket-panel ticket-panel-muted">
+                <p class="panel-title">Ticket non validé</p>
+                <p class="panel-text">Ce ticket a été clôturé sans crédit.</p>
+              </div>
+            {% endif %}
+          {% endif %}
+
+        </article>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="empty-state"><h3>Aucune tâche disponible</h3><p>Piochez dans le flux lorsqu’un lot de données est disponible.</p></div>
+  {% endif %}
+</section>
+
+<section class="section-block">
+  <div class="section-heading"><div><p class="eyebrow">Historique</p><h2>Retraits récents MoMo</h2></div></div>
+  {% if withdrawals %}
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Date demande</th><th>Montant</th><th>Statut de traitement</th></tr></thead>
+        <tbody>
+          {% for row in withdrawals %}
+            <tr>
+              <td>{{ row['requested_at'] }}</td>
+              <td>{{ format_fcfa(row['amount_fcfa']) }} FCFA</td>
+              <td><span class="badge badge-{{ row['status'] }}">{{ row['status'] }}</span></td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="empty-state"><h3>Aucun retrait pour le moment</h3><p>Vos demandes de retrait apparaîtront ici.</p></div>
+  {% endif %}
+</section>
+
+<script>
+  document.addEventListener('click', function (event) {
+    var button = event.target.closest('.copy-button');
+    if (!button) return;
+    var target = document.getElementById(button.dataset.copyTarget);
+    if (!target) return;
+    navigator.clipboard.writeText(target.textContent.trim()).then(function () {
+      var original = button.textContent;
+      button.textContent = 'Copié ✓';
+      setTimeout(function () { button.textContent = original; }, 1500);
+    });
+  });
+</script>
+{% endblock %}

@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#1F5C56">
+  <title>{% block title %}Tâches Bénin{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body data-role="{{ 'admin' if session.get('is_admin') else ('operator' if session.get('user_id') else 'guest') }}">
+
+  <header class="site-header">
+    <div class="site-header-inner">
+      <a href="{{ url_for('index') }}" class="brand">
+        <span class="brand-mark" aria-hidden="true">₣</span>
+        <span class="brand-name">Tâches Bénin</span>
+      </a>
+
+      <nav class="site-nav">
+        {% if session.get('is_admin') %}
+          <span class="nav-tag">Mode administration</span>
+          <a href="{{ url_for('admin_dashboard') }}" class="nav-link">Supervision</a>
+          <a href="{{ url_for('admin_tasks') }}" class="nav-link">Tickets</a>
+          <a href="{{ url_for('admin_withdrawals') }}" class="nav-link">Retraits</a>
+          <form method="post" action="{{ url_for('admin_logout') }}" class="nav-logout">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="button button-light button-small">Déconnexion</button>
+          </form>
+        {% elif session.get('user_id') %}
+          <a href="{{ url_for('dashboard') }}" class="nav-link">Tableau de bord</a>
+          <form method="post" action="{{ url_for('logout') }}" class="nav-logout">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="button button-light button-small">Déconnexion</button>
+          </form>
+        {% else %}
+          <a href="{{ url_for('login') }}" class="nav-link">Connexion</a>
+          <a href="{{ url_for('admin_login') }}" class="nav-link nav-link-muted">Administration</a>
+        {% endif %}
+      </nav>
+    </div>
+  </header>
+
+  <main class="container">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="flash-list">
+          {% for category, message in messages %}
+            <p class="flash flash-{{ category }}" role="alert">{{ message }}</p>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="site-footer">
+    <p>Tâches Bénin · Paiements Mobile Money MTN et MOOV</p>
+  </footer>
+
+</body>
+</html>

@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}{{ title }} · Tâches Bénin{% endblock %}
+{% block content %}
+<section class="auth-wrap">
+  <div class="auth-card error-card">
+    <p class="eyebrow">Tâches Bénin</p>
+    <h1>{{ title }}</h1>
+    <p class="muted">{{ message }}</p>
+    <p class="auth-footnote"><a href="{{ url_for('index') }}">Retour à l'accueil</a></p>
+  </div>
+</section>
+{% endblock %}
