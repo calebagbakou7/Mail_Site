@@ -632,19 +632,27 @@ def create_app(test_config=None):
         db = get_db()
         if request.method == "POST":
             prompt = request.form.get("prompt", "").strip()
+            validation_mode = request.form.get("validation_mode", "manual")
+            expected_answer = request.form.get("expected_answer", "").strip()
             valeurs = [
                 request.form.get(f"valeur_{letter}", "").strip() for letter in "abcd"
             ]
             url_1 = request.form.get("resource_url_1", "").strip()
             url_2 = request.form.get("resource_url_2", "").strip()
+
+            # Validation
             if not prompt or len(prompt) > 2000:
                 flash("Le texte du ticket doit contenir entre 1 et 2 000 caractères.", "error")
-            elif any(not v or len(v) > MAX_VALUE_LENGTH for v in valeurs):
+            elif validation_mode == "exact" and not expected_answer:
+                flash("En mode 'exact', une réponse attendue est requise.", "error")
+            elif validation_mode == "manual" and any(
+                not v or len(v) > MAX_VALUE_LENGTH for v in valeurs
+            ):
                 flash(
                     "Valeur_A à Valeur_D sont requises (500 caractères maximum chacune).",
                     "error",
                 )
-            elif not is_valid_http_url(url_1) or not is_valid_http_url(url_2):
+            elif (url_1 and not is_valid_http_url(url_1)) or (url_2 and not is_valid_http_url(url_2)):
                 flash("Les liens ressources doivent être des URL http(s) valides.", "error")
             else:
                 with atomic(db):
@@ -653,9 +661,16 @@ def create_app(test_config=None):
                         INSERT INTO tasks(prompt, validation_mode, expected_answer,
                                           valeur_a, valeur_b, valeur_c, valeur_d,
                                           resource_url_1, resource_url_2)
-                        VALUES (?, 'manual', NULL, ?, ?, ?, ?, ?, ?)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                         """,
-                        (prompt, *valeurs, url_1 or None, url_2 or None),
+                        (
+                            prompt,
+                            validation_mode,
+                            expected_answer if expected_answer else None,
+                            *valeurs,
+                            url_1 or None,
+                            url_2 or None,
+                        ),
                     )
                 flash("Ticket ajouté au flux.", "success")
                 return redirect(url_for("admin_tasks"))
