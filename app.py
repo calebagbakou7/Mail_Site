@@ -452,6 +452,90 @@ def create_app(test_config=None):
         return redirect(url_for("dashboard"))
 
     # ------------------------------------------------------------------
+    # Soumission (réponses utilisateurs)
+    # ------------------------------------------------------------------
+    @app.route("/tickets/<int:assignment_id>/submit", methods=["POST"])
+    @user_required
+    def submit_assignment(assignment_id):
+        """Soumet une réponse pour une tâche.
+
+        - En mode 'exact' : la réponse est comparée immédiatement et créditée si elle
+          correspond à expected_answer (comparaison insensible à la casse).
+        - En mode 'manual' : la soumission est placée en attente de revue (pending_review)
+          et n’est pas créditée automatiquement.
+        """
+        answer = request.form.get("answer", "").strip()
+        db = get_db()
+        with atomic(db):
+            # Récupère l'affectation et les informations de la tâche
+            row = db.execute(
+                """
+                SELECT a.user_id, a.status, a.current_step, a.reward_fcfa,
+                       t.validation_mode, t.expected_answer
+                FROM assignments a JOIN tasks t ON t.id = a.task_id
+                WHERE a.id = ? AND a.user_id = ?
+                """,
+                (assignment_id, g.user_id),
+            ).fetchone()
+            if row is None:
+                flash("Ticket introuvable.", "error")
+                return redirect(url_for("dashboard"))
+
+            if row["status"] != "assigned":
+                flash("Ce ticket ne peut pas être soumis depuis son état actuel.", "error")
+                return redirect(url_for("dashboard"))
+
+            if row["validation_mode"] == "exact":
+                # Comparaison insensible à la casse
+                expected = (row["expected_answer"] or "").strip().lower()
+                if expected and expected == answer.lower():
+                    # Approuver et créditer immédiatement
+                    result = db.execute(
+                        """
+                        UPDATE assignments
+                        SET status = 'approved', answer = ?,
+                            reviewed_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now'),
+                            credited_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now'),
+                            current_step = 4
+                        WHERE id = ? AND user_id = ? AND status = 'assigned'
+                        """,
+                        (answer, assignment_id, g.user_id),
+                    )
+                    if result.rowcount == 1:
+                        # Récompense figée à l'attribution
+                        credit_task_reward(db, row["user_id"], assignment_id, row["reward_fcfa"])
+                        flash("Réponse correcte — crédit appliqué.", "success")
+                    else:
+                        flash("Cette soumission vient d’être modifiée.", "error")
+                else:
+                    # Réponse incorrecte -> rejet
+                    db.execute(
+                        """
+                        UPDATE assignments
+                        SET status = 'rejected', answer = ?, reviewed_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+                        WHERE id = ? AND user_id = ? AND status = 'assigned'
+                        """,
+                        (answer, assignment_id, g.user_id),
+                    )
+                    flash("Réponse enregistrée (incorrecte).", "error")
+            else:
+                # Mode manuel : on place la soumission en attente de revue
+                result = db.execute(
+                    """
+                    UPDATE assignments
+                    SET status = 'pending_review', answer = ?, current_step = 4,
+                        submitted_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+                    WHERE id = ? AND user_id = ? AND status = 'assigned'
+                    """,
+                    (answer, assignment_id, g.user_id),
+                )
+                if result.rowcount != 1:
+                    flash("Cette soumission vient d’être modifiée.", "error")
+                else:
+                    flash("Soumission enregistrée et en attente de revue.", "success")
+        return redirect(url_for("dashboard"))
+
+    # ------------------------------------------------------------------
     # Retraits
     # ------------------------------------------------------------------
     @app.route("/withdrawals", methods=["POST"])
